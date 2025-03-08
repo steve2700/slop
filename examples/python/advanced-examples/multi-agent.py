@@ -6,7 +6,6 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from typing import List, Dict, Any
 import asyncio
-from functools import partial
 
 # Load environment variables
 load_dotenv()
