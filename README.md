@@ -10,7 +10,7 @@
 - ❌ A framework or library you install
 - ❌ A new technology or language
 - ❌ A specific company's product
-- ❌ Complicated or fancy in any way
+- ❌ An additional abstraction in any way
 
 > 💡 **SLOP simply says:** "AI services should work through plain web requests using patterns we've used for decades."
 
