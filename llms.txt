@@ -1,0 +1,865 @@
+Directory Structure:
++ examples
+  + javascript
+    + advanced-examples
+      - multi-agent.js
+    - slop.js
+  + python
+    + advanced-examples
+      - multi-agent.py
+    - requirements.txt
+    - slop.py
+- LICENSE
+
+File Contents:
+----------------------
+EXAMPLES\JAVASCRIPT\ADVANCED-EXAMPLES\MULTI-AGENT.JS
+----------------------
+import { OpenAI } from "openai";
+import express from "express";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const app = express();
+app.use(express.json());
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Memory storage
+const memory = {};
+
+// ======= SIMPLE AGENT SYSTEM =======
+
+// Router Agent - decides which specialized agent to use
+async function routerAgent(query) {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: [
+      { role: "system", content: "You are a router that categorizes queries and selects the best specialized agent to handle them." },
+      { role: "user", content: `Classify this query and select ONE agent: "${query}"` }
+    ],
+    functions: [{
+      name: "route_query",
+      description: "Route the query to the appropriate agent",
+      parameters: {
+        type: "object",
+        properties: {
+          agent: {
+            type: "string",
+            enum: ["researcher", "creative", "technical", "summarizer"],
+            description: "The agent best suited to handle this query"
+          },
+          reason: {
+            type: "string",
+            description: "Brief reason for this routing decision"
+          }
+        },
+        required: ["agent", "reason"]
+      }
+    }],
+    function_call: { name: "route_query" }
+  });
+  
+  const args = JSON.parse(completion.choices[0].message.function_call.arguments);
+  console.log(`🔀 Routing to: ${args.agent} (${args.reason})`);
+  return args;
+}
+
+// Create agent factory
+const createAgent = (role, temperature = 0.7) => async (query) => {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: [
+      { role: "system", content: role },
+      { role: "user", content: query }
+    ],
+    temperature
+  });
+  return completion.choices[0].message.content;
+};
+
+// Specialized Agents
+const agents = {
+  researcher: createAgent("You are a research agent providing factual information with sources.", 0.3),
+  creative: createAgent("You are a creative agent generating imaginative content.", 0.9),
+  technical: createAgent("You are a technical agent providing precise, detailed explanations.", 0.2),
+  summarizer: createAgent("You are a summarization agent that creates concise summaries.", 0.3)
+};
+
+// ======= SLOP API IMPLEMENTATION =======
+
+// 1. CHAT endpoint - main entry point
+app.post('/chat', async (req, res) => {
+  try {
+    const { messages, pattern } = req.body;
+    const userQuery = messages[0].content;
+    let response;
+
+    if (pattern) {
+      switch (pattern) {
+        case 'sequential':
+          // Research → Summarize pattern
+          const research = await agents.researcher(userQuery);
+          response = await agents.summarizer(research);
+          break;
+
+        case 'parallel':
+          // Get multiple perspectives simultaneously
+          const [researchView, creativeView] = await Promise.all([
+            agents.researcher(userQuery),
+            agents.creative(userQuery)
+          ]);
+          response = `Research perspective:\n${researchView}\n\nCreative perspective:\n${creativeView}`;
+          break;
+
+        case 'branching':
+          // Use router to select best agent
+          const route = await routerAgent(userQuery);
+          response = await agents[route.agent](userQuery);
+          break;
+
+        default:
+          // Default to router behavior
+          const defaultRoute = await routerAgent(userQuery);
+          response = await agents[defaultRoute.agent](userQuery);
+      }
+    } else {
+      // Default to router behavior
+      const route = await routerAgent(userQuery);
+      response = await agents[route.agent](userQuery);
+    }
+
+    // Store in memory
+    const sessionId = `session_${Date.now()}`;
+    memory[sessionId] = {
+      query: userQuery,
+      pattern: pattern || 'router',
+      response
+    };
+
+    res.json({
+      message: {
+        role: "assistant",
+        content: response,
+        metadata: {
+          session_id: sessionId,
+          pattern: pattern || 'router'
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 2. TOOLS endpoint
+app.get('/tools', (req, res) => {
+  res.json({
+    tools: [
+      { id: "researcher", description: "Finds factual information" },
+      { id: "creative", description: "Generates imaginative content" },
+      { id: "technical", description: "Provides technical explanations" },
+      { id: "summarizer", description: "Creates concise summaries" }
+    ],
+    patterns: [
+      { id: "sequential", description: "Research then summarize" },
+      { id: "parallel", description: "Multiple perspectives at once" },
+      { id: "branching", description: "Route to best agent (default)" }
+    ]
+  });
+});
+
+// 3. MEMORY endpoints
+app.post('/memory', (req, res) => {
+  const { key, value } = req.body;
+  memory[key] = value;
+  res.json({ status: 'stored' });
+});
+
+app.get('/memory/:key', (req, res) => {
+  const { key } = req.params;
+  res.json({ value: memory[key] || null });
+});
+
+// 4. RESOURCES endpoint
+app.get('/resources', (req, res) => {
+  res.json({
+    patterns: {
+      sequential: "Chain agents: Research → Summarize",
+      parallel: "Multiple agents work simultaneously",
+      branching: "Route to specialized agents"
+    },
+    examples: {
+      sequential: {
+        description: "Research a topic and create a summary",
+        request: {
+          messages: [{ content: "Explain quantum computing" }],
+          pattern: "sequential"
+        }
+      },
+      parallel: {
+        description: "Get multiple perspectives on a topic",
+        request: {
+          messages: [{ content: "Benefits of meditation" }],
+          pattern: "parallel"
+        }
+      },
+      branching: {
+        description: "Route to the most appropriate agent",
+        request: {
+          messages: [{ content: "How do I write a React component?" }],
+          pattern: "branching"
+        }
+      }
+    }
+  });
+});
+
+// 5. PAY endpoint (simple mock)
+app.post('/pay', (req, res) => {
+  const { amount } = req.body;
+  const txId = `tx_${Date.now()}`;
+  memory[txId] = { amount, status: 'completed' };
+  res.json({ transaction_id: txId });
+});
+
+// Start server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🤖 SLOP Multi-Agent API running on port ${PORT}`);
+});
+
+/* Example usage:
+
+1. Basic query (uses router):
+curl -X POST http://localhost:3000/chat \
+-H "Content-Type: application/json" \
+-d '{
+  "messages": [{ "content": "What are black holes?" }]
+}'
+
+2. Sequential pattern:
+curl -X POST http://localhost:3000/chat \
+-H "Content-Type: application/json" \
+-d '{
+  "messages": [{ "content": "Explain quantum computing" }],
+  "pattern": "sequential"
+}'
+
+3. Parallel pattern:
+curl -X POST http://localhost:3000/chat \
+-H "Content-Type: application/json" \
+-d '{
+  "messages": [{ "content": "Benefits of meditation" }],
+  "pattern": "parallel"
+}'
+
+4. Store in memory:
+curl -X POST http://localhost:3000/memory \
+-H "Content-Type: application/json" \
+-d '{
+  "key": "test",
+  "value": "hello world"
+}'
+
+5. Get from memory:
+curl -X GET http://localhost:3000/memory/test
+
+6. List tools:
+curl -X GET http://localhost:3000/tools
+
+7. Get resources:
+curl -X GET http://localhost:3000/resources
+
+8. Process payment:
+curl -X POST http://localhost:3000/pay \
+-H "Content-Type: application/json" \
+-d '{
+  "amount": 10
+}'
+*/
+----------------------
+EXAMPLES\JAVASCRIPT\SLOP.JS
+----------------------
+// JavaScript implementation of the SLOP pattern
+import express from 'express';
+import axios from 'axios';
+
+// Available tools and resources
+const tools = {
+  calculator: {
+    id: 'calculator',
+    description: 'Basic math',
+    execute: params => ({ result: eval(params.expression) })
+  },
+  greet: {
+    id: 'greet',
+    description: 'Says hello',
+    execute: params => ({ result: `Hello, ${params.name}!` })
+  }
+};
+
+const resources = {
+  hello: { id: 'hello', content: 'Hello, SLOP!' }
+};
+
+// Setup server
+const app = express();
+app.use(express.json());
+
+// In-memory storage
+const memory = new Map();
+
+// CHAT
+app.post('/chat', (req, res) => {
+  const message = req.body.messages?.[0]?.content || 'nothing';
+  res.json({
+    message: {
+      role: 'assistant',
+      content: `You said: ${message}`
+    }
+  });
+});
+
+// TOOLS
+app.get('/tools', (_, res) => res.json({ tools: Object.values(tools) }));
+app.post('/tools/:id', (req, res) => {
+  const tool = tools[req.params.id];
+  if (!tool) return res.status(404).json({ error: 'Tool not found' });
+  res.json(tool.execute(req.body));
+});
+
+// MEMORY
+app.post('/memory', (req, res) => {
+  const { key, value } = req.body;
+  memory.set(key, value);
+  res.json({ status: 'stored' });
+});
+
+app.get('/memory/:key', (req, res) => {
+  res.json({ value: memory.get(req.params.key) });
+});
+
+// RESOURCES
+app.get('/resources', (_, res) => res.json({ resources: Object.values(resources) }));
+app.get('/resources/:id', (req, res) => {
+  const resource = resources[req.params.id];
+  if (!resource) return res.status(404).json({ error: 'Resource not found' });
+  res.json(resource);
+});
+
+// PAY
+app.post('/pay', (_, res) => {
+  res.json({
+    transaction_id: 'tx_' + Date.now(),
+    status: 'success'
+  });
+});
+
+// Start server and run tests
+app.listen(3000, async () => {
+  console.log('✨ SLOP running on http://localhost:3000\n');
+  
+  const api = axios.create({ baseURL: 'http://localhost:3000' });
+  
+  try {
+    // Test chat
+    console.log('📝 Testing chat...');
+    const chat = await api.post('/chat', {
+      messages: [{ content: 'Hello SLOP!' }]
+    });
+    console.log(chat.data.message.content, '\n');
+
+    // Test tools
+    console.log('🔧 Testing tools...');
+    const calc = await api.post('/tools/calculator', {
+      expression: '2 + 2'
+    });
+    console.log('2 + 2 =', calc.data.result);
+
+    const greet = await api.post('/tools/greet', {
+      name: 'SLOP'
+    });
+    console.log(greet.data.result, '\n');
+
+    // Test memory
+    console.log('💾 Testing memory...');
+    await api.post('/memory', {
+      key: 'test',
+      value: 'hello world'
+    });
+    const memory = await api.get('/memory/test');
+    console.log('Stored value:', memory.data.value, '\n');
+
+    // Test resources
+    console.log('📚 Testing resources...');
+    const hello = await api.get('/resources/hello');
+    console.log('Resource content:', hello.data.content, '\n');
+
+    // Test pay
+    console.log('💰 Testing pay...');
+    const pay = await api.post('/pay', {
+      amount: 10
+    });
+    console.log('Transaction:', pay.data.transaction_id, '\n');
+
+    console.log('✅ All tests passed!');
+  } catch (error) {
+    console.error('❌ Test failed:', error.response?.data || error.message);
+  }
+});
+----------------------
+EXAMPLES\PYTHON\ADVANCED-EXAMPLES\MULTI-AGENT.PY
+----------------------
+import os
+import json
+import time
+from flask import Flask, request, jsonify
+from openai import OpenAI
+from dotenv import load_dotenv
+from typing import List, Dict, Any
+import asyncio
+
+# Load environment variables
+load_dotenv()
+
+# Initialize Flask app
+app = Flask(__name__)
+
+# Initialize OpenAI client
+openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Memory storage
+memory = {}
+
+# ======= SIMPLE AGENT SYSTEM =======
+
+# Router Agent - decides which specialized agent to use
+def router_agent(query: str) -> Dict[str, str]:
+    completion = openai.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": "You are a router that categorizes queries and selects the best specialized agent to handle them."},
+            {"role": "user", "content": f'Classify this query and select ONE agent: "{query}"'}
+        ],
+        tools=[{
+            "type": "function",
+            "function": {
+                "name": "route_query",
+                "description": "Route the query to the appropriate agent",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "agent": {
+                            "type": "string",
+                            "enum": ["researcher", "creative", "technical", "summarizer"],
+                            "description": "The agent best suited to handle this query"
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "Brief reason for this routing decision"
+                        }
+                    },
+                    "required": ["agent", "reason"]
+                }
+            }
+        }],
+        tool_choice={"type": "function", "function": {"name": "route_query"}}
+    )
+    
+    tool_call = completion.choices[0].message.tool_calls[0]
+    args = json.loads(tool_call.function.arguments)
+    print(f"🔀 Routing to: {args['agent']} ({args['reason']})")
+    return args
+
+# Create agent factory
+def create_agent(role: str, temperature: float = 0.7):
+    async def agent(query: str) -> str:
+        completion = await asyncio.to_thread(
+            openai.chat.completions.create,
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": role},
+                {"role": "user", "content": query}
+            ],
+            temperature=temperature
+        )
+        return completion.choices[0].message.content
+    return agent
+
+# Specialized Agents
+agents = {
+    "researcher": create_agent("You are a research agent providing factual information with sources.", 0.3),
+    "creative": create_agent("You are a creative agent generating imaginative content.", 0.9),
+    "technical": create_agent("You are a technical agent providing precise, detailed explanations.", 0.2),
+    "summarizer": create_agent("You are a summarization agent that creates concise summaries.", 0.3)
+}
+
+# ======= SLOP API IMPLEMENTATION =======
+
+# 1. CHAT endpoint - main entry point
+@app.route('/chat', methods=['POST'])
+async def chat():
+    try:
+        data = request.json
+        messages = data.get('messages', [])
+        pattern = data.get('pattern')
+        user_query = messages[0]['content'] if messages else ""
+        
+        response = None
+
+        if pattern:
+            if pattern == 'sequential':
+                # Research then summarize
+                research = await agents["researcher"](user_query)
+                response = await agents["summarizer"](research)
+            
+            elif pattern == 'parallel':
+                # Get multiple perspectives simultaneously
+                research_task = agents["researcher"](user_query)
+                creative_task = agents["creative"](user_query)
+                results = await asyncio.gather(research_task, creative_task)
+                response = f"Research perspective:\n{results[0]}\n\nCreative perspective:\n{results[1]}"
+            
+            elif pattern == 'branching':
+                route = router_agent(user_query)
+                response = await agents[route['agent']](user_query)
+            
+            else:
+                # Default to router behavior
+                route = router_agent(user_query)
+                response = await agents[route['agent']](user_query)
+        else:
+            # Default to router behavior
+            route = router_agent(user_query)
+            response = await agents[route['agent']](user_query)
+        
+        # Store in memory
+        session_id = f"session_{int(time.time())}"
+        memory[session_id] = {
+            "query": user_query,
+            "pattern": pattern or "router",
+            "response": response
+        }
+        
+        return jsonify({
+            "message": {
+                "role": "assistant",
+                "content": response,
+                "metadata": {
+                    "session_id": session_id,
+                    "pattern": pattern or "router"
+                }
+            }
+        })
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# 2. TOOLS endpoint
+@app.route('/tools', methods=['GET'])
+def list_tools():
+    return jsonify({
+        "tools": [
+            {"id": "researcher", "description": "Finds factual information"},
+            {"id": "creative", "description": "Generates imaginative content"},
+            {"id": "technical", "description": "Provides technical explanations"},
+            {"id": "summarizer", "description": "Creates concise summaries"}
+        ],
+        "patterns": [
+            {"id": "sequential", "description": "Research then summarize"},
+            {"id": "parallel", "description": "Multiple perspectives at once"},
+            {"id": "branching", "description": "Route to best agent (default)"}
+        ]
+    })
+
+# 3. MEMORY endpoints
+@app.route('/memory', methods=['POST'])
+def store_memory():
+    data = request.json
+    key = data.get('key')
+    value = data.get('value')
+    memory[key] = value
+    return jsonify({"status": "stored"})
+
+@app.route('/memory/<key>', methods=['GET'])
+def get_memory(key):
+    return jsonify({"value": memory.get(key)})
+
+# 4. RESOURCES endpoint
+@app.route('/resources', methods=['GET'])
+def get_resources():
+    return jsonify({
+        "patterns": {
+            "sequential": "Chain agents: Research → Summarize",
+            "parallel": "Multiple agents work simultaneously",
+            "branching": "Route to specialized agents"
+        },
+        "examples": {
+            "sequential": {
+                "description": "Research a topic and create a summary",
+                "request": {
+                    "messages": [{"content": "Explain quantum computing"}],
+                    "pattern": "sequential"
+                }
+            },
+            "parallel": {
+                "description": "Get multiple perspectives on a topic",
+                "request": {
+                    "messages": [{"content": "Benefits of meditation"}],
+                    "pattern": "parallel"
+                }
+            },
+            "branching": {
+                "description": "Route to the most appropriate agent",
+                "request": {
+                    "messages": [{"content": "How do I write a Python class?"}],
+                    "pattern": "branching"
+                }
+            }
+        }
+    })
+
+# 5. PAY endpoint (simple mock)
+@app.route('/pay', methods=['POST'])
+def process_payment():
+    data = request.json
+    tx_id = f"tx_{int(time.time())}"
+    memory[tx_id] = {"amount": data.get('amount'), "status": "completed"}
+    return jsonify({"transaction_id": tx_id})
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 3000))
+    print(f"🤖 SLOP Multi-Agent API running on port {port}")
+    app.run(host="0.0.0.0", port=port, debug=True)
+
+"""
+Example usage:
+
+1. Basic query (uses router):
+curl -X POST http://localhost:3000/chat \
+-H "Content-Type: application/json" \
+-d '{
+    "messages": [{"content": "What are black holes?"}]
+}'
+
+2. Sequential pattern:
+curl -X POST http://localhost:3000/chat \
+-H "Content-Type: application/json" \
+-d '{
+    "messages": [{"content": "Explain quantum computing"}],
+    "pattern": "sequential"
+}'
+
+3. Parallel pattern:
+curl -X POST http://localhost:3000/chat \
+-H "Content-Type: application/json" \
+-d '{
+    "messages": [{"content": "Benefits of meditation"}],
+    "pattern": "parallel"
+}'
+
+4. Store in memory:
+curl -X POST http://localhost:3000/memory \
+-H "Content-Type: application/json" \
+-d '{
+    "key": "test",
+    "value": "hello world"
+}'
+
+5. Get from memory:
+curl -X GET http://localhost:3000/memory/test
+
+6. List tools:
+curl -X GET http://localhost:3000/tools
+
+7. Get resources:
+curl -X GET http://localhost:3000/resources
+
+8. Process payment:
+curl -X POST http://localhost:3000/pay \
+-H "Content-Type: application/json" \
+-d '{
+    "amount": 10
+}'
+"""
+----------------------
+EXAMPLES\PYTHON\REQUIREMENTS.TXT
+----------------------
+flask==3.0.2
+requests==2.31.0
+----------------------
+EXAMPLES\PYTHON\SLOP.PY
+----------------------
+# Python implementation of the SLOP pattern
+
+from flask import Flask, request, jsonify
+import requests
+from datetime import datetime
+
+# Initialize Flask app
+app = Flask(__name__)
+
+# Available tools and resources
+tools = {
+    'calculator': {
+        'id': 'calculator',
+        'description': 'Basic math',
+        'execute': lambda params: {'result': eval(params['expression'])}
+    },
+    'greet': {
+        'id': 'greet',
+        'description': 'Says hello',
+        'execute': lambda params: {'result': f"Hello, {params['name']}!"}
+    }
+}
+
+resources = {
+    'hello': {'id': 'hello', 'content': 'Hello, SLOP!'}
+}
+
+# In-memory storage
+memory = {}
+
+# CHAT
+@app.route('/chat', methods=['POST'])
+def chat():
+    data = request.json
+    message = data.get('messages', [{}])[0].get('content', 'nothing')
+    return jsonify({
+        'message': {
+            'role': 'assistant',
+            'content': f'You said: {message}'
+        }
+    })
+
+# TOOLS
+@app.route('/tools', methods=['GET'])
+def list_tools():
+    return jsonify({'tools': list(tools.values())})
+
+@app.route('/tools/<tool_id>', methods=['POST'])
+def use_tool(tool_id):
+    if tool_id not in tools:
+        return jsonify({'error': 'Tool not found'}), 404
+    return jsonify(tools[tool_id]['execute'](request.json))
+
+# MEMORY
+@app.route('/memory', methods=['POST'])
+def store_memory():
+    data = request.json
+    memory[data['key']] = data['value']
+    return jsonify({'status': 'stored'})
+
+@app.route('/memory/<key>', methods=['GET'])
+def get_memory(key):
+    return jsonify({'value': memory.get(key)})
+
+# RESOURCES
+@app.route('/resources', methods=['GET'])
+def list_resources():
+    return jsonify({'resources': list(resources.values())})
+
+@app.route('/resources/<resource_id>', methods=['GET'])
+def get_resource(resource_id):
+    if resource_id not in resources:
+        return jsonify({'error': 'Resource not found'}), 404
+    return jsonify(resources[resource_id])
+
+# PAY
+@app.route('/pay', methods=['POST'])
+def pay():
+    return jsonify({
+        'transaction_id': f'tx_{int(datetime.now().timestamp())}',
+        'status': 'success'
+    })
+
+def test_endpoints():
+    """Test all SLOP endpoints"""
+    base = 'http://localhost:5000'
+    
+    try:
+        # Test chat
+        print('📝 Testing chat...')
+        chat = requests.post(f'{base}/chat', json={
+            'messages': [{'content': 'Hello SLOP!'}]
+        }).json()
+        print(chat['message']['content'], '\n')
+
+        # Test tools
+        print('🔧 Testing tools...')
+        calc = requests.post(f'{base}/tools/calculator', json={
+            'expression': '2 + 2'
+        }).json()
+        print('2 + 2 =', calc['result'])
+
+        greet = requests.post(f'{base}/tools/greet', json={
+            'name': 'SLOP'
+        }).json()
+        print(greet['result'], '\n')
+
+        # Test memory
+        print('💾 Testing memory...')
+        requests.post(f'{base}/memory', json={
+            'key': 'test',
+            'value': 'hello world'
+        })
+        memory = requests.get(f'{base}/memory/test').json()
+        print('Stored value:', memory['value'], '\n')
+
+        # Test resources
+        print('📚 Testing resources...')
+        hello = requests.get(f'{base}/resources/hello').json()
+        print('Resource content:', hello['content'], '\n')
+
+        # Test pay
+        print('💰 Testing pay...')
+        pay = requests.post(f'{base}/pay', json={
+            'amount': 10
+        }).json()
+        print('Transaction:', pay['transaction_id'], '\n')
+
+        print('✅ All tests passed!')
+    except Exception as e:
+        print('❌ Test failed:', str(e))
+
+if __name__ == '__main__':
+    import threading
+    import time
+    
+    # Start server in a thread
+    threading.Thread(target=app.run, daemon=True).start()
+    
+    # Wait for server to start
+    print('✨ SLOP running on http://localhost:5000')
+    time.sleep(1)
+    print('🚀 Running tests...\n')
+    
+    # Run tests
+    test_endpoints()
+----------------------
+LICENSE
+----------------------
+MIT License
+
+Copyright (c) 2025 agnt.gg
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
