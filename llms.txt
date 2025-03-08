@@ -35,7 +35,7 @@ That's it. Just a pattern. ✨
 - `POST /tools` // Use tools
 - `POST /memory` // Remember stuff
 - `GET /resources` // Get knowledge/files/data
-- `POST /pay` // Handle money (optional)
+- `POST /pay` // Handle money
 
 ## 3. CONNECTION TYPES
 - Standard HTTP/REST Interface For Most Things
