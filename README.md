@@ -495,4 +495,48 @@ chat_response = call_slop('/chat', {
 
 Remember: SLOP uses standard HTTP auth - no special endpoints needed! 🔑
 
+### 🛡️ SCOPE HEADERS FOR LIMITING AI SCOPE
+
+SLOP uses standard HTTP headers to control AI safety and permissions:
+
+```http
+X-SLOP-Scope: chat.read,tools.calculator,memory.user.read
+```
+
+#### Common Scopes
+
+chat.read # Read chat history
+chat.write # Send messages
+tools.* # Access all tools
+tools.safe.* # Access only safe tools
+memory.user.* # Full user memory access
+memory..read # Read-only memory access
+
+
+#### Examples
+
+```http
+# Safe: Calculator within scope
+POST /tools/calculator
+X-SLOP-Scope: tools.calculator.execute
+{
+    "expression": "2 + 2"
+}
+
+# Blocked: No execute permission
+POST /tools/system-cmd
+X-SLOP-Scope: tools.calculator.execute
+{
+    "cmd": "rm -rf /"
+}
+
+// RESPONSE
+{
+    "error": "Scope violation: tools.execute-code requires explicit permission",
+    "permitted": false
+}
+```
+
+Remember: Security through simplicity! 🔒
+
 🎉 **Enjoy using SLOP!** 🎉 
