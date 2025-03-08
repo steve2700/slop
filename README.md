@@ -33,10 +33,9 @@ That's it. Just a pattern. ✨
 - `GET /resources` // Get knowledge/files/data
 - `POST /pay` // Handle money (optional)
 
-## 3. CONNECTIONS
-- HTTP by default
-- WebSocket also supported for real-time
-- SSE also supported for streaming
+## 3. CONNECTION TYPES
+- Standard HTTP/REST Interface For Most Things
+- WebSocket & SSE Support for Realtime Communication
 
 ---
 

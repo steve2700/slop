@@ -6,7 +6,7 @@
 > SLOP delivers a revolutionary approach to AI integration - build powerful, interconnected AI systems using familiar HTTP requests. No specialized knowledge required.
 >
 > ✅ **Connect AI Components in Minutes, Not Months**  
-> ✅ **Standard HTTP/REST Interface Everyone Already Knows**  
+> ✅ **Standard HTTP/REST Interface Everyone Already Knows For Most Things**  
 > ✅ **WebSocket & SSE Support for Realtime Communication**  
 > ✅ **Infinitely Composable Building Blocks for AI Systems**  
 > ✅ **Open Source Pattern That Works with Any AI Model**  
