@@ -184,6 +184,131 @@ GET /chat
     }
   ]
 }
+
+// THREAD MANAGEMENT IN SLOP USING EXISTING ENDPOINTS
+
+// 1. Creating a new thread
+POST /chat
+{
+  "thread_id": "thread_12345",  // Thread identifier
+  "messages": [
+    {"role": "user", "content": "Let's discuss project planning"}
+  ],
+  "model": "any-model-id"
+}
+
+// 2. Adding messages to an existing thread
+POST /chat
+{
+  "thread_id": "thread_12345",
+  "messages": [
+    {"role": "user", "content": "What's our next milestone?"}
+  ],
+  "model": "any-model-id"
+}
+
+// 3. Listing all threads (using query parameter)
+GET /chat?type=threads
+
+// Response from listing threads
+{
+  "threads": [
+    {
+      "id": "thread_12345",
+      "title": "Project Planning",
+      "last_message": "What's our next milestone?",
+      "created_at": "2023-05-15T10:30:00Z",
+      "updated_at": "2023-05-15T11:45:00Z"
+    },
+    {
+      "id": "thread_67890",
+      "title": "Bug Fixes",
+      "last_message": "Let's prioritize the login issue",
+      "created_at": "2023-05-14T14:20:00Z",
+      "updated_at": "2023-05-14T16:30:00Z"
+    }
+  ]
+}
+
+// 4. Getting all messages in a thread
+GET /chat/thread_12345
+
+// Response with thread messages
+{
+  "thread_id": "thread_12345",
+  "title": "Project Planning",
+  "messages": [
+    {
+      "id": "msg_001",
+      "role": "user", 
+      "content": "Let's discuss project planning",
+      "created_at": "2023-05-15T10:30:00Z"
+    },
+    {
+      "id": "msg_002",
+      "role": "assistant", 
+      "content": "Sure, what aspects of the project would you like to plan?",
+      "created_at": "2023-05-15T10:30:05Z"
+    },
+    {
+      "id": "msg_003",
+      "role": "user", 
+      "content": "What's our next milestone?",
+      "created_at": "2023-05-15T11:45:00Z"
+    }
+  ],
+  "model": "any-model-id",
+  "created_at": "2023-05-15T10:30:00Z",
+  "updated_at": "2023-05-15T11:45:00Z"
+}
+
+// 5. Storing thread metadata
+POST /memory
+{
+  "key": "thread:thread_12345",
+  "value": {
+    "title": "Project Planning",
+    "participants": ["user_1", "user_2"],
+    "tags": ["project", "planning", "roadmap"],
+    "status": "active"
+  }
+}
+
+// 6. Searching for threads by metadata
+POST /memory/query
+{
+  "query": "project planning threads with user_1",
+  "filter": {
+    "key_prefix": "thread:"
+  }
+}
+
+// Response from thread search
+{
+  "results": [
+    {
+      "key": "thread:thread_12345",
+      "value": {
+        "title": "Project Planning",
+        "participants": ["user_1", "user_2"],
+        "tags": ["project", "planning", "roadmap"],
+        "status": "active"
+      },
+      "score": 0.95
+    }
+  ]
+}
+
+// 7. Updating thread status
+PUT /memory/thread:thread_12345
+{
+  "value": {
+    "title": "Project Planning",
+    "participants": ["user_1", "user_2", "user_3"],  // Added new participant
+    "tags": ["project", "planning", "roadmap", "active"],
+    "status": "in_progress"  // Updated status
+  }
+}
 ```
 
 ### 🛠️ TOOLS ENDPOINTS
