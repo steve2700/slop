@@ -1,7 +1,3 @@
-
-----------------------
-README.MD
-----------------------
 # SLOP: Simple Language Open Protocol
 
 > **Because AI shouldn't be complicated**
@@ -460,95 +456,6 @@ GET /pay/tx_987654
 }
 ```
 
-## 🔄 SSE STREAMING IN SLOP
-
-SLOP supports streaming responses through Server-Sent Events (SSE) - perfect for token-by-token AI outputs:
-
-### Adding SSE to Your SLOP Implementation
-
-#### JavaScript Example
-```javascript
-// Add this streaming endpoint to your SLOP implementation
-app.post('/chat/stream', async (req, res) => {
-  const { messages } = req.body;
-  const userQuery = messages[0].content;
-  
-  // Set SSE headers
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  
-  // Create streaming response
-  const stream = await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: [
-      { role: "system", content: "You are a helpful assistant." },
-      { role: "user", content: userQuery }
-    ],
-    stream: true
-  });
-  
-  // Send tokens as they arrive
-  for await (const chunk of stream) {
-    const content = chunk.choices[0]?.delta?.content || '';
-    if (content) {
-      res.write(`data: ${JSON.stringify({ content })}\n\n`);
-    }
-  }
-  res.write('data: [DONE]\n\n');
-  res.end();
-});
-```
-
-#### Python Example
-```python
-@app.route('/chat/stream', methods=['POST'])
-def chat_stream():
-    data = request.json
-    user_query = data['messages'][0]['content']
-    
-    def generate():
-        stream = openai.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": user_query}
-            ],
-            stream=True
-        )
-        for chunk in stream:
-            content = chunk.choices[0].delta.content or ''
-            if content:
-                yield f"data: {json.dumps({'content': content})}\n\n"
-        yield "data: [DONE]\n\n"
-    
-    return Response(generate(), content_type='text/event-stream')
-```
-
-#### Client Consumption
-```javascript
-// Browser JavaScript to consume the stream
-const eventSource = new EventSource('/chat/stream');
-eventSource.onmessage = (event) => {
-  if (event.data === '[DONE]') {
-    eventSource.close();
-    return;
-  }
-  const data = JSON.parse(event.data);
-  // Append incoming token to UI
-  document.getElementById('response').innerHTML += data.content;
-};
-```
-
-### Why SSE is SLOP-Friendly:
-- Uses standard HTTP - no new protocols
-- Works with existing authentication
-- Simple implementation - minimal code
-- Compatible with all HTTP clients
-- Lower overhead than WebSockets
-
-Remember: Add `/stream` suffix to endpoints that support streaming! 🚿
-
 ### 🔐 AUTH EXAMPLES
 
 Authentication in SLOP uses standard HTTP headers. Here are examples in both JavaScript and Python:
@@ -656,6 +563,236 @@ X-SLOP-Scope: tools.calculator.execute
 ```
 
 Remember: Security through simplicity! 🔒
+
+---
+
+
+## 🔄 SSE STREAMING IN SLOP
+
+SLOP supports streaming responses through Server-Sent Events (SSE) - perfect for token-by-token AI outputs:
+
+### Adding SSE to Your SLOP Implementation
+
+#### JavaScript Example
+```javascript
+// Add this streaming endpoint to your SLOP implementation
+app.post('/chat/stream', async (req, res) => {
+  const { messages } = req.body;
+  const userQuery = messages[0].content;
+  
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  // Create streaming response
+  const stream = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: [
+      { role: "system", content: "You are a helpful assistant." },
+      { role: "user", content: userQuery }
+    ],
+    stream: true
+  });
+  
+  // Send tokens as they arrive
+  for await (const chunk of stream) {
+    const content = chunk.choices[0]?.delta?.content || '';
+    if (content) {
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+    }
+  }
+  res.write('data: [DONE]\n\n');
+  res.end();
+});
+```
+
+#### Python Example
+```python
+@app.route('/chat/stream', methods=['POST'])
+def chat_stream():
+    data = request.json
+    user_query = data['messages'][0]['content']
+    
+    def generate():
+        stream = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": user_query}
+            ],
+            stream=True
+        )
+        for chunk in stream:
+            content = chunk.choices[0].delta.content or ''
+            if content:
+                yield f"data: {json.dumps({'content': content})}\n\n"
+        yield "data: [DONE]\n\n"
+    
+    return Response(generate(), content_type='text/event-stream')
+```
+
+#### Client Consumption
+```javascript
+// Browser JavaScript to consume the stream
+const eventSource = new EventSource('/chat/stream');
+eventSource.onmessage = (event) => {
+  if (event.data === '[DONE]') {
+    eventSource.close();
+    return;
+  }
+  const data = JSON.parse(event.data);
+  // Append incoming token to UI
+  document.getElementById('response').innerHTML += data.content;
+};
+```
+
+### Why SSE is SLOP-Friendly:
+- Uses standard HTTP - no new protocols
+- Works with existing authentication
+- Simple implementation - minimal code
+- Compatible with all HTTP clients
+- Lower overhead than WebSockets
+
+Remember: Add `/stream` suffix to endpoints that support streaming! 🚿
+
+## 🔌 WEBSOCKET STREAMING IN SLOP
+
+SLOP also supports WebSocket for bidirectional streaming - ideal for real-time AI interactions:
+
+### Adding WebSocket to Your SLOP Implementation
+
+#### JavaScript Example (Node.js with ws)
+```javascript
+// Server-side WebSocket implementation
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ port: 8080 });
+
+wss.on('connection', (ws) => {
+  ws.on('message', async (message) => {
+    try {
+      const data = JSON.parse(message);
+      const { messages } = data;
+      const userQuery = messages[0].content;
+      
+      // Create streaming response
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          { role: "system", content: "You are a helpful assistant." },
+          { role: "user", content: userQuery }
+        ],
+        stream: true
+      });
+      
+      // Send tokens as they arrive
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ content }));
+        }
+      }
+      
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ status: "complete" }));
+      }
+    } catch (error) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ error: error.message }));
+      }
+    }
+  });
+});
+```
+
+#### Python Example (with FastAPI and websockets)
+```python
+from fastapi import FastAPI, WebSocket
+import json
+import openai
+
+app = FastAPI()
+
+@app.websocket("/chat/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    
+    try:
+        while True:
+            data = await websocket.receive_text()
+            data_json = json.loads(data)
+            user_query = data_json['messages'][0]['content']
+            
+            stream = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": user_query}
+                ],
+                stream=True
+            )
+            
+            for chunk in stream:
+                content = chunk.choices[0].delta.content or ''
+                if content:
+                    await websocket.send_text(json.dumps({"content": content}))
+            
+            await websocket.send_text(json.dumps({"status": "complete"}))
+    
+    except Exception as e:
+        await websocket.send_text(json.dumps({"error": str(e)}))
+```
+
+#### Client Consumption
+```javascript
+// Browser JavaScript to connect to WebSocket
+const socket = new WebSocket('ws://localhost:8080');
+let responseText = '';
+
+// Send a message when connection is open
+socket.onopen = function(event) {
+  socket.send(JSON.stringify({
+    messages: [{ role: 'user', content: 'Tell me about SLOP protocol' }]
+  }));
+};
+
+// Listen for messages
+socket.onmessage = function(event) {
+  const data = JSON.parse(event.data);
+  
+  if (data.content) {
+    responseText += data.content;
+    document.getElementById('response').innerText = responseText;
+  }
+  
+  if (data.status === 'complete') {
+    console.log('Response complete');
+  }
+  
+  if (data.error) {
+    console.error('Error:', data.error);
+  }
+};
+
+// Handle errors
+socket.onerror = function(error) {
+  console.error('WebSocket Error:', error);
+};
+
+// Clean up on close
+socket.onclose = function(event) {
+  console.log('Connection closed');
+};
+```
+
+### Why WebSockets for SLOP:
+- Bidirectional communication for complex interactions
+- Persistent connection for multiple exchanges
+- Real-time feedback and typing indicators
+- Supports advanced features like user interruptions
+- Ideal for chat applications and interactive AI assistants
+
+Remember: Use `/ws` suffix to indicate WebSocket endpoints in your SLOP implementation! 🔌
 
 ---
 
