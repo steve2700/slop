@@ -1,4 +1,3 @@
-// simple-agent-slop.js
 import { OpenAI } from "openai";
 import express from "express";
 import dotenv from "dotenv";
@@ -84,6 +83,19 @@ const agents = {
       temperature: 0.2
     });
     return completion.choices[0].message.content;
+  },
+
+  // Add summarizer agent
+  summarizer: async (query) => {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a summarization agent that creates concise summaries." },
+        { role: "user", content: query }
+      ],
+      temperature: 0.3
+    });
+    return completion.choices[0].message.content;
   }
 };
 
@@ -92,21 +104,42 @@ const agents = {
 // CHAT endpoint - main entry point
 app.post('/chat', async (req, res) => {
   try {
-    const { messages } = req.body;
+    const { messages, pattern } = req.body;
     const userQuery = messages[0].content;
+    let response;
+
+    if (pattern) {
+      // Handle specific patterns if requested
+      switch (pattern) {
+        case 'sequential':
+          const research = await agents.researcher(userQuery);
+          response = await agents.summarizer(research);
+          break;
+
+        case 'parallel':
+          const [researchResult, creativeResult] = await Promise.all([
+            agents.researcher(userQuery),
+            agents.creative(userQuery)
+          ]);
+          response = `Research perspective:\n${researchResult}\n\nCreative perspective:\n${creativeResult}`;
+          break;
+
+        case 'branching':
+          const route = await routerAgent(userQuery);
+          response = await agents[route.agent](userQuery);
+          break;
+      }
+    } else {
+      // Default to original router behavior
+      const route = await routerAgent(userQuery);
+      response = await agents[route.agent](userQuery);
+    }
     
-    // 1. Route the query to the appropriate agent
-    const route = await routerAgent(userQuery);
-    
-    // 2. Process with the selected agent
-    const response = await agents[route.agent](userQuery);
-    
-    // 3. Store in memory
+    // Store in memory
     const sessionId = `session_${Date.now()}`;
     memory[sessionId] = {
       query: userQuery,
-      agent: route.agent,
-      reason: route.reason,
+      pattern: pattern || 'router',
       response
     };
     
@@ -115,8 +148,8 @@ app.post('/chat', async (req, res) => {
         role: "assistant",
         content: response,
         metadata: {
-          agent: route.agent,
-          session_id: sessionId
+          session_id: sessionId,
+          pattern: pattern || 'router'
         }
       }
     });
@@ -144,7 +177,13 @@ app.get('/tools', (req, res) => {
     tools: [
       { id: "researcher", description: "Finds factual information" },
       { id: "creative", description: "Generates imaginative content" },
-      { id: "technical", description: "Provides technical explanations" }
+      { id: "technical", description: "Provides technical explanations" },
+      { id: "summarizer", description: "Creates concise summaries" }
+    ],
+    patterns: [
+      { id: "sequential", description: "Research then summarize" },
+      { id: "parallel", description: "Multiple perspectives at once" },
+      { id: "branching", description: "Route to best agent (default)" }
     ]
   });
 });
@@ -155,7 +194,14 @@ app.listen(PORT, () => {
   console.log(`🤖 Simple Agent SLOP API running on port ${PORT}`);
 });
 
-// EXAMPLE USAGE
+// Example usage:
+
+// Basic query:
 // curl -X POST http://localhost:3000/chat \
-// -H "Content-Type: application/json" \
-// -d '{"messages":[{"content":"What are black holes?"}]}'
+  // -H "Content-Type: application/json" \
+  // -d '{"messages":[{"content":"What are black holes?"}]}'
+
+// With pattern:
+// curl -X POST http://localhost:3000/chat \
+  // -H "Content-Type: application/json" \
+  // -d '{"messages":[{"content":"What are black holes?"}], "pattern": "sequential"}'
