@@ -165,10 +165,11 @@ GET /chat/chat_123
   "model": "any-model-id",
   "created_at": "2023-05-15T10:30:00Z"
 }
+```
 
-// THREAD MANAGEMENT IN SLOP USING EXISTING ENDPOINTS
-
-// 1. Creating a new thread
+#### Creating a Thread
+```json
+// REQUEST
 POST /chat
 {
   "thread_id": "thread_12345",  // Thread identifier
@@ -178,7 +179,19 @@ POST /chat
   "model": "any-model-id"
 }
 
-// 2. Adding messages to an existing thread
+// RESPONSE
+{
+  "thread_id": "thread_12345",
+  "message": {
+    "role": "assistant", 
+    "content": "Sure, I'd be happy to discuss project planning. What aspects would you like to focus on?"
+  }
+}
+```
+
+#### Adding to a Thread
+```json
+// REQUEST
 POST /chat
 {
   "thread_id": "thread_12345",
@@ -188,10 +201,22 @@ POST /chat
   "model": "any-model-id"
 }
 
-// 3. Listing all threads (using query parameter)
+// RESPONSE
+{
+  "thread_id": "thread_12345",
+  "message": {
+    "role": "assistant", 
+    "content": "To determine the next milestone, we should review your project timeline and priorities. What's the current state of your project?"
+  }
+}
+```
+
+#### Listing All Threads
+```json
+// REQUEST
 GET /chat?type=threads
 
-// Response from listing threads
+// RESPONSE
 {
   "threads": [
     {
@@ -210,11 +235,14 @@ GET /chat?type=threads
     }
   ]
 }
+```
 
-// 4. Getting all messages in a thread
+#### Getting Thread Messages
+```json
+// REQUEST
 GET /chat/thread_12345
 
-// Response with thread messages
+// RESPONSE
 {
   "thread_id": "thread_12345",
   "title": "Project Planning",
@@ -242,8 +270,11 @@ GET /chat/thread_12345
   "created_at": "2023-05-15T10:30:00Z",
   "updated_at": "2023-05-15T11:45:00Z"
 }
+```
 
-// 5. Storing thread metadata
+#### Storing Thread Metadata
+```json
+// REQUEST
 POST /memory
 {
   "key": "thread:thread_12345",
@@ -255,7 +286,15 @@ POST /memory
   }
 }
 
-// 6. Searching for threads by metadata
+// RESPONSE
+{
+  "status": "stored"
+}
+```
+
+#### Searching for Threads
+```json
+// REQUEST
 POST /memory/query
 {
   "query": "project planning threads with user_1",
@@ -264,7 +303,7 @@ POST /memory/query
   }
 }
 
-// Response from thread search
+// RESPONSE
 {
   "results": [
     {
@@ -279,8 +318,11 @@ POST /memory/query
     }
   ]
 }
+```
 
-// 7. Updating thread status
+#### Updating Thread Metadata
+```json
+// REQUEST
 PUT /memory/thread:thread_12345
 {
   "value": {
@@ -288,6 +330,17 @@ PUT /memory/thread:thread_12345
     "participants": ["user_1", "user_2", "user_3"],  // Added new participant
     "tags": ["project", "planning", "roadmap", "active"],
     "status": "in_progress"  // Updated status
+  }
+}
+
+// RESPONSE
+{
+  "status": "updated",
+  "previous_value": {
+    "title": "Project Planning",
+    "participants": ["user_1", "user_2"],
+    "tags": ["project", "planning", "roadmap"],
+    "status": "active"
   }
 }
 ```
