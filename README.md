@@ -456,6 +456,95 @@ GET /pay/tx_987654
 }
 ```
 
+## 🔄 SSE STREAMING IN SLOP
+
+SLOP supports streaming responses through Server-Sent Events (SSE) - perfect for token-by-token AI outputs:
+
+### Adding SSE to Your SLOP Implementation
+
+#### JavaScript Example
+```javascript
+// Add this streaming endpoint to your SLOP implementation
+app.post('/chat/stream', async (req, res) => {
+  const { messages } = req.body;
+  const userQuery = messages[0].content;
+  
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  // Create streaming response
+  const stream = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: [
+      { role: "system", content: "You are a helpful assistant." },
+      { role: "user", content: userQuery }
+    ],
+    stream: true
+  });
+  
+  // Send tokens as they arrive
+  for await (const chunk of stream) {
+    const content = chunk.choices[0]?.delta?.content || '';
+    if (content) {
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+    }
+  }
+  res.write('data: [DONE]\n\n');
+  res.end();
+});
+```
+
+#### Python Example
+```python
+@app.route('/chat/stream', methods=['POST'])
+def chat_stream():
+    data = request.json
+    user_query = data['messages'][0]['content']
+    
+    def generate():
+        stream = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": user_query}
+            ],
+            stream=True
+        )
+        for chunk in stream:
+            content = chunk.choices[0].delta.content or ''
+            if content:
+                yield f"data: {json.dumps({'content': content})}\n\n"
+        yield "data: [DONE]\n\n"
+    
+    return Response(generate(), content_type='text/event-stream')
+```
+
+#### Client Consumption
+```javascript
+// Browser JavaScript to consume the stream
+const eventSource = new EventSource('/chat/stream');
+eventSource.onmessage = (event) => {
+  if (event.data === '[DONE]') {
+    eventSource.close();
+    return;
+  }
+  const data = JSON.parse(event.data);
+  // Append incoming token to UI
+  document.getElementById('response').innerHTML += data.content;
+};
+```
+
+### Why SSE is SLOP-Friendly:
+- Uses standard HTTP - no new protocols
+- Works with existing authentication
+- Simple implementation - minimal code
+- Compatible with all HTTP clients
+- Lower overhead than WebSockets
+
+Remember: Add `/stream` suffix to endpoints that support streaming! 🚿
+
 ### 🔐 AUTH EXAMPLES
 
 Authentication in SLOP uses standard HTTP headers. Here are examples in both JavaScript and Python:

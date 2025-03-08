@@ -460,6 +460,95 @@ GET /pay/tx_987654
 }
 ```
 
+## 🔄 SSE STREAMING IN SLOP
+
+SLOP supports streaming responses through Server-Sent Events (SSE) - perfect for token-by-token AI outputs:
+
+### Adding SSE to Your SLOP Implementation
+
+#### JavaScript Example
+```javascript
+// Add this streaming endpoint to your SLOP implementation
+app.post('/chat/stream', async (req, res) => {
+  const { messages } = req.body;
+  const userQuery = messages[0].content;
+  
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  // Create streaming response
+  const stream = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: [
+      { role: "system", content: "You are a helpful assistant." },
+      { role: "user", content: userQuery }
+    ],
+    stream: true
+  });
+  
+  // Send tokens as they arrive
+  for await (const chunk of stream) {
+    const content = chunk.choices[0]?.delta?.content || '';
+    if (content) {
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+    }
+  }
+  res.write('data: [DONE]\n\n');
+  res.end();
+});
+```
+
+#### Python Example
+```python
+@app.route('/chat/stream', methods=['POST'])
+def chat_stream():
+    data = request.json
+    user_query = data['messages'][0]['content']
+    
+    def generate():
+        stream = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": user_query}
+            ],
+            stream=True
+        )
+        for chunk in stream:
+            content = chunk.choices[0].delta.content or ''
+            if content:
+                yield f"data: {json.dumps({'content': content})}\n\n"
+        yield "data: [DONE]\n\n"
+    
+    return Response(generate(), content_type='text/event-stream')
+```
+
+#### Client Consumption
+```javascript
+// Browser JavaScript to consume the stream
+const eventSource = new EventSource('/chat/stream');
+eventSource.onmessage = (event) => {
+  if (event.data === '[DONE]') {
+    eventSource.close();
+    return;
+  }
+  const data = JSON.parse(event.data);
+  // Append incoming token to UI
+  document.getElementById('response').innerHTML += data.content;
+};
+```
+
+### Why SSE is SLOP-Friendly:
+- Uses standard HTTP - no new protocols
+- Works with existing authentication
+- Simple implementation - minimal code
+- Compatible with all HTTP clients
+- Lower overhead than WebSockets
+
+Remember: Add `/stream` suffix to endpoints that support streaming! 🚿
+
 ### 🔐 AUTH EXAMPLES
 
 Authentication in SLOP uses standard HTTP headers. Here are examples in both JavaScript and Python:
@@ -574,6 +663,8 @@ Let's collab! SLOP Discord: https://discord.com/invite/nwXJMnHmXP
 
 🎉 **Enjoy using SLOP!** 🎉 
 
+---
+
 Directory Structure:
 + examples
   + javascript
@@ -607,44 +698,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Memory storage
 const memory = {};
 
-// ======= SIMPLE AGENT SYSTEM =======
-
-// Router Agent - decides which specialized agent to use
-async function routerAgent(query) {
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: [
-      { role: "system", content: "You are a router that categorizes queries and selects the best specialized agent to handle them." },
-      { role: "user", content: `Classify this query and select ONE agent: "${query}"` }
-    ],
-    functions: [{
-      name: "route_query",
-      description: "Route the query to the appropriate agent",
-      parameters: {
-        type: "object",
-        properties: {
-          agent: {
-            type: "string",
-            enum: ["researcher", "creative", "technical", "summarizer"],
-            description: "The agent best suited to handle this query"
-          },
-          reason: {
-            type: "string",
-            description: "Brief reason for this routing decision"
-          }
-        },
-        required: ["agent", "reason"]
-      }
-    }],
-    function_call: { name: "route_query" }
-  });
-  
-  const args = JSON.parse(completion.choices[0].message.function_call.arguments);
-  console.log(`🔀 Routing to: ${args.agent} (${args.reason})`);
-  return args;
-}
-
-// Create agent factory
+// Simple agent factory
 const createAgent = (role, temperature = 0.7) => async (query) => {
   const completion = await openai.chat.completions.create({
     model: "gpt-4",
@@ -657,77 +711,56 @@ const createAgent = (role, temperature = 0.7) => async (query) => {
   return completion.choices[0].message.content;
 };
 
-// Specialized Agents
+// Define specialized agents
 const agents = {
-  researcher: createAgent("You are a research agent providing factual information with sources.", 0.3),
-  creative: createAgent("You are a creative agent generating imaginative content.", 0.9),
-  technical: createAgent("You are a technical agent providing precise, detailed explanations.", 0.2),
-  summarizer: createAgent("You are a summarization agent that creates concise summaries.", 0.3)
+  researcher: createAgent("You are a research agent providing factual information."),
+  writer: createAgent("You are a creative writer generating engaging content."),
+  coder: createAgent("You are a technical expert writing clean, simple code."),
+  summarizer: createAgent("You are an expert at concisely summarizing information.")
 };
 
 // ======= SLOP API IMPLEMENTATION =======
 
-// 1. CHAT endpoint - main entry point
+// 1. CHAT endpoint - supports different agent patterns
 app.post('/chat', async (req, res) => {
   try {
-    const { messages, pattern } = req.body;
-    const userQuery = messages[0].content;
-    let response;
+    const { pattern, query } = req.body;
+    let result;
 
-    if (pattern) {
-      switch (pattern) {
-        case 'sequential':
-          // Research → Summarize pattern
-          const research = await agents.researcher(userQuery);
-          response = await agents.summarizer(research);
-          break;
+    switch (pattern) {
+      case 'sequential':
+        // Research → Summarize pattern
+        const research = await agents.researcher(query);
+        result = await agents.summarizer(research);
+        break;
 
-        case 'parallel':
-          // Get multiple perspectives simultaneously
-          const [researchView, creativeView] = await Promise.all([
-            agents.researcher(userQuery),
-            agents.creative(userQuery)
-          ]);
-          response = `Research perspective:\n${researchView}\n\nCreative perspective:\n${creativeView}`;
-          break;
+      case 'parallel':
+        // Get multiple perspectives simultaneously
+        const [researchView, creativeView] = await Promise.all([
+          agents.researcher(query),
+          agents.writer(query)
+        ]);
+        result = `Research: ${researchView}\n\nCreative: ${creativeView}`;
+        break;
 
-        case 'branching':
-          // Use router to select best agent
-          const route = await routerAgent(userQuery);
-          response = await agents[route.agent](userQuery);
-          break;
+      case 'branching':
+        // Route to specific agent based on query type
+        const isCodeRelated = query.toLowerCase().includes('code') || 
+                            query.toLowerCase().includes('programming');
+        result = await agents[isCodeRelated ? 'coder' : 'researcher'](query);
+        break;
 
-        default:
-          // Default to router behavior
-          const defaultRoute = await routerAgent(userQuery);
-          response = await agents[defaultRoute.agent](userQuery);
-      }
-    } else {
-      // Default to router behavior
-      const route = await routerAgent(userQuery);
-      response = await agents[route.agent](userQuery);
+      default:
+        // Default to single researcher agent
+        result = await agents.researcher(query);
     }
 
-    // Store in memory
+    // Store result in memory
     const sessionId = `session_${Date.now()}`;
-    memory[sessionId] = {
-      query: userQuery,
-      pattern: pattern || 'router',
-      response
-    };
+    memory[sessionId] = { query, result, pattern };
 
-    res.json({
-      message: {
-        role: "assistant",
-        content: response,
-        metadata: {
-          session_id: sessionId,
-          pattern: pattern || 'router'
-        }
-      }
-    });
+    res.json({ message: { role: "assistant", content: result } });
   } catch (error) {
-    console.error("Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -735,17 +768,12 @@ app.post('/chat', async (req, res) => {
 // 2. TOOLS endpoint
 app.get('/tools', (req, res) => {
   res.json({
-    tools: [
-      { id: "researcher", description: "Finds factual information" },
-      { id: "creative", description: "Generates imaginative content" },
-      { id: "technical", description: "Provides technical explanations" },
-      { id: "summarizer", description: "Creates concise summaries" }
-    ],
-    patterns: [
+    available_patterns: [
       { id: "sequential", description: "Research then summarize" },
       { id: "parallel", description: "Multiple perspectives at once" },
-      { id: "branching", description: "Route to best agent (default)" }
-    ]
+      { id: "branching", description: "Route to best agent" }
+    ],
+    available_agents: Object.keys(agents)
   });
 });
 
@@ -768,29 +796,6 @@ app.get('/resources', (req, res) => {
       sequential: "Chain agents: Research → Summarize",
       parallel: "Multiple agents work simultaneously",
       branching: "Route to specialized agents"
-    },
-    examples: {
-      sequential: {
-        description: "Research a topic and create a summary",
-        request: {
-          messages: [{ content: "Explain quantum computing" }],
-          pattern: "sequential"
-        }
-      },
-      parallel: {
-        description: "Get multiple perspectives on a topic",
-        request: {
-          messages: [{ content: "Benefits of meditation" }],
-          pattern: "parallel"
-        }
-      },
-      branching: {
-        description: "Route to the most appropriate agent",
-        request: {
-          messages: [{ content: "How do I write a React component?" }],
-          pattern: "branching"
-        }
-      }
     }
   });
 });
@@ -810,52 +815,11 @@ app.listen(PORT, () => {
 });
 
 /* Example usage:
-
-1. Basic query (uses router):
 curl -X POST http://localhost:3000/chat \
 -H "Content-Type: application/json" \
 -d '{
-  "messages": [{ "content": "What are black holes?" }]
-}'
-
-2. Sequential pattern:
-curl -X POST http://localhost:3000/chat \
--H "Content-Type: application/json" \
--d '{
-  "messages": [{ "content": "Explain quantum computing" }],
-  "pattern": "sequential"
-}'
-
-3. Parallel pattern:
-curl -X POST http://localhost:3000/chat \
--H "Content-Type: application/json" \
--d '{
-  "messages": [{ "content": "Benefits of meditation" }],
-  "pattern": "parallel"
-}'
-
-4. Store in memory:
-curl -X POST http://localhost:3000/memory \
--H "Content-Type: application/json" \
--d '{
-  "key": "test",
-  "value": "hello world"
-}'
-
-5. Get from memory:
-curl -X GET http://localhost:3000/memory/test
-
-6. List tools:
-curl -X GET http://localhost:3000/tools
-
-7. Get resources:
-curl -X GET http://localhost:3000/resources
-
-8. Process payment:
-curl -X POST http://localhost:3000/pay \
--H "Content-Type: application/json" \
--d '{
-  "amount": 10
+  "pattern": "sequential",
+  "query": "Explain quantum computing"
 }'
 */
 ----------------------
