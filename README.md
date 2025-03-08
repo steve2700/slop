@@ -32,9 +32,9 @@ That's it. Just a pattern. ✨
 - `POST /pay` // Handle money (optional)
 
 ## 3. CONNECTIONS
-- WebSocket for real-time
-- SSE for streaming
-- HTTP for everything else
+- WebSocket supported for real-time
+- SSE supported for streaming
+- HTTP supported for everything else
 
 ---
 
