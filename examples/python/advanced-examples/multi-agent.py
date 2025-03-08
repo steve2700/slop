@@ -6,6 +6,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from typing import List, Dict, Any
 import asyncio
+from functools import partial
 
 # Load environment variables
 load_dotenv()
@@ -24,7 +25,7 @@ memory = {}
 # Router Agent - decides which specialized agent to use
 def router_agent(query: str) -> Dict[str, str]:
     completion = openai.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a router that categorizes queries and selects the best specialized agent to handle them."},
             {"role": "user", "content": f'Classify this query and select ONE agent: "{query}"'}
@@ -59,19 +60,22 @@ def router_agent(query: str) -> Dict[str, str]:
     print(f"🔀 Routing to: {args['agent']} ({args['reason']})")
     return args
 
-# Specialized Agents
+# Create agent factory
 def create_agent(role: str, temperature: float = 0.7):
-    def agent(query: str) -> str:
-        return openai.chat.completions.create(
-            model="gpt-4o",
+    async def agent(query: str) -> str:
+        completion = await asyncio.to_thread(
+            openai.chat.completions.create,
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": role},
                 {"role": "user", "content": query}
             ],
             temperature=temperature
-        ).choices[0].message.content
+        )
+        return completion.choices[0].message.content
     return agent
 
+# Specialized Agents
 agents = {
     "researcher": create_agent("You are a research agent providing factual information with sources.", 0.3),
     "creative": create_agent("You are a creative agent generating imaginative content.", 0.9),
@@ -81,7 +85,7 @@ agents = {
 
 # ======= SLOP API IMPLEMENTATION =======
 
-# CHAT endpoint - main entry point
+# 1. CHAT endpoint - main entry point
 @app.route('/chat', methods=['POST'])
 async def chat():
     try:
@@ -108,8 +112,13 @@ async def chat():
             elif pattern == 'branching':
                 route = router_agent(user_query)
                 response = await agents[route['agent']](user_query)
+            
+            else:
+                # Default to router behavior
+                route = router_agent(user_query)
+                response = await agents[route['agent']](user_query)
         else:
-            # Default to original router behavior
+            # Default to router behavior
             route = router_agent(user_query)
             response = await agents[route['agent']](user_query)
         
@@ -135,20 +144,7 @@ async def chat():
         print(f"Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# MEMORY endpoints
-@app.route('/memory', methods=['POST'])
-def store_memory():
-    data = request.json
-    key = data.get('key')
-    value = data.get('value')
-    memory[key] = value
-    return jsonify({"status": "stored"})
-
-@app.route('/memory/<key>', methods=['GET'])
-def get_memory(key):
-    return jsonify({"value": memory.get(key)})
-
-# TOOLS endpoint
+# 2. TOOLS endpoint
 @app.route('/tools', methods=['GET'])
 def list_tools():
     return jsonify({
@@ -165,7 +161,20 @@ def list_tools():
         ]
     })
 
-# RESOURCES endpoint
+# 3. MEMORY endpoints
+@app.route('/memory', methods=['POST'])
+def store_memory():
+    data = request.json
+    key = data.get('key')
+    value = data.get('value')
+    memory[key] = value
+    return jsonify({"status": "stored"})
+
+@app.route('/memory/<key>', methods=['GET'])
+def get_memory(key):
+    return jsonify({"value": memory.get(key)})
+
+# 4. RESOURCES endpoint
 @app.route('/resources', methods=['GET'])
 def get_resources():
     return jsonify({
@@ -173,10 +182,33 @@ def get_resources():
             "sequential": "Chain agents: Research → Summarize",
             "parallel": "Multiple agents work simultaneously",
             "branching": "Route to specialized agents"
+        },
+        "examples": {
+            "sequential": {
+                "description": "Research a topic and create a summary",
+                "request": {
+                    "messages": [{"content": "Explain quantum computing"}],
+                    "pattern": "sequential"
+                }
+            },
+            "parallel": {
+                "description": "Get multiple perspectives on a topic",
+                "request": {
+                    "messages": [{"content": "Benefits of meditation"}],
+                    "pattern": "parallel"
+                }
+            },
+            "branching": {
+                "description": "Route to the most appropriate agent",
+                "request": {
+                    "messages": [{"content": "How do I write a Python class?"}],
+                    "pattern": "branching"
+                }
+            }
         }
     })
 
-# PAY endpoint (simple mock)
+# 5. PAY endpoint (simple mock)
 @app.route('/pay', methods=['POST'])
 def process_payment():
     data = request.json
@@ -187,16 +219,55 @@ def process_payment():
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 3000))
     print(f"🤖 SLOP Multi-Agent API running on port {port}")
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=True)
 
-# Example usage:
+"""
+Example usage:
 
-# Basic query:
-# curl -X POST http://localhost:3000/chat \
-#   -H "Content-Type: application/json" \
-#   -d '{"messages":[{"content":"What are black holes?"}]}'
-#
-# With pattern:
-# curl -X POST http://localhost:3000/chat \
-#   -H "Content-Type: application/json" \
-#   -d '{"messages":[{"content":"What are black holes?"}], "pattern": "sequential"}'
+1. Basic query (uses router):
+curl -X POST http://localhost:3000/chat \
+-H "Content-Type: application/json" \
+-d '{
+    "messages": [{"content": "What are black holes?"}]
+}'
+
+2. Sequential pattern:
+curl -X POST http://localhost:3000/chat \
+-H "Content-Type: application/json" \
+-d '{
+    "messages": [{"content": "Explain quantum computing"}],
+    "pattern": "sequential"
+}'
+
+3. Parallel pattern:
+curl -X POST http://localhost:3000/chat \
+-H "Content-Type: application/json" \
+-d '{
+    "messages": [{"content": "Benefits of meditation"}],
+    "pattern": "parallel"
+}'
+
+4. Store in memory:
+curl -X POST http://localhost:3000/memory \
+-H "Content-Type: application/json" \
+-d '{
+    "key": "test",
+    "value": "hello world"
+}'
+
+5. Get from memory:
+curl -X GET http://localhost:3000/memory/test
+
+6. List tools:
+curl -X GET http://localhost:3000/tools
+
+7. Get resources:
+curl -X GET http://localhost:3000/resources
+
+8. Process payment:
+curl -X POST http://localhost:3000/pay \
+-H "Content-Type: application/json" \
+-d '{
+    "amount": 10
+}'
+"""

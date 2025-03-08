@@ -16,7 +16,7 @@ const memory = {};
 // Router Agent - decides which specialized agent to use
 async function routerAgent(query) {
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4",
     messages: [
       { role: "system", content: "You are a router that categorizes queries and selects the best specialized agent to handle them." },
       { role: "user", content: `Classify this query and select ONE agent: "${query}"` }
@@ -29,7 +29,7 @@ async function routerAgent(query) {
         properties: {
           agent: {
             type: "string",
-            enum: ["researcher", "creative", "technical"],
+            enum: ["researcher", "creative", "technical", "summarizer"],
             description: "The agent best suited to handle this query"
           },
           reason: {
@@ -48,60 +48,30 @@ async function routerAgent(query) {
   return args;
 }
 
+// Create agent factory
+const createAgent = (role, temperature = 0.7) => async (query) => {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: [
+      { role: "system", content: role },
+      { role: "user", content: query }
+    ],
+    temperature
+  });
+  return completion.choices[0].message.content;
+};
+
 // Specialized Agents
 const agents = {
-  researcher: async (query) => {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: "You are a research agent providing factual information with sources." },
-        { role: "user", content: query }
-      ]
-    });
-    return completion.choices[0].message.content;
-  },
-  
-  creative: async (query) => {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: "You are a creative agent generating imaginative content." },
-        { role: "user", content: query }
-      ],
-      temperature: 0.9
-    });
-    return completion.choices[0].message.content;
-  },
-  
-  technical: async (query) => {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: "You are a technical agent providing precise, detailed explanations." },
-        { role: "user", content: query }
-      ],
-      temperature: 0.2
-    });
-    return completion.choices[0].message.content;
-  },
-
-  // Add summarizer agent
-  summarizer: async (query) => {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: "You are a summarization agent that creates concise summaries." },
-        { role: "user", content: query }
-      ],
-      temperature: 0.3
-    });
-    return completion.choices[0].message.content;
-  }
+  researcher: createAgent("You are a research agent providing factual information with sources.", 0.3),
+  creative: createAgent("You are a creative agent generating imaginative content.", 0.9),
+  technical: createAgent("You are a technical agent providing precise, detailed explanations.", 0.2),
+  summarizer: createAgent("You are a summarization agent that creates concise summaries.", 0.3)
 };
 
 // ======= SLOP API IMPLEMENTATION =======
 
-// CHAT endpoint - main entry point
+// 1. CHAT endpoint - main entry point
 app.post('/chat', async (req, res) => {
   try {
     const { messages, pattern } = req.body;
@@ -109,32 +79,39 @@ app.post('/chat', async (req, res) => {
     let response;
 
     if (pattern) {
-      // Handle specific patterns if requested
       switch (pattern) {
         case 'sequential':
+          // Research → Summarize pattern
           const research = await agents.researcher(userQuery);
           response = await agents.summarizer(research);
           break;
 
         case 'parallel':
-          const [researchResult, creativeResult] = await Promise.all([
+          // Get multiple perspectives simultaneously
+          const [researchView, creativeView] = await Promise.all([
             agents.researcher(userQuery),
             agents.creative(userQuery)
           ]);
-          response = `Research perspective:\n${researchResult}\n\nCreative perspective:\n${creativeResult}`;
+          response = `Research perspective:\n${researchView}\n\nCreative perspective:\n${creativeView}`;
           break;
 
         case 'branching':
+          // Use router to select best agent
           const route = await routerAgent(userQuery);
           response = await agents[route.agent](userQuery);
           break;
+
+        default:
+          // Default to router behavior
+          const defaultRoute = await routerAgent(userQuery);
+          response = await agents[defaultRoute.agent](userQuery);
       }
     } else {
-      // Default to original router behavior
+      // Default to router behavior
       const route = await routerAgent(userQuery);
       response = await agents[route.agent](userQuery);
     }
-    
+
     // Store in memory
     const sessionId = `session_${Date.now()}`;
     memory[sessionId] = {
@@ -142,7 +119,7 @@ app.post('/chat', async (req, res) => {
       pattern: pattern || 'router',
       response
     };
-    
+
     res.json({
       message: {
         role: "assistant",
@@ -159,19 +136,7 @@ app.post('/chat', async (req, res) => {
   }
 });
 
-// MEMORY endpoints
-app.post('/memory', (req, res) => {
-  const { key, value } = req.body;
-  memory[key] = value;
-  res.json({ status: 'stored' });
-});
-
-app.get('/memory/:key', (req, res) => {
-  const { key } = req.params;
-  res.json({ value: memory[key] || null });
-});
-
-// TOOLS endpoint
+// 2. TOOLS endpoint
 app.get('/tools', (req, res) => {
   res.json({
     tools: [
@@ -188,20 +153,112 @@ app.get('/tools', (req, res) => {
   });
 });
 
+// 3. MEMORY endpoints
+app.post('/memory', (req, res) => {
+  const { key, value } = req.body;
+  memory[key] = value;
+  res.json({ status: 'stored' });
+});
+
+app.get('/memory/:key', (req, res) => {
+  const { key } = req.params;
+  res.json({ value: memory[key] || null });
+});
+
+// 4. RESOURCES endpoint
+app.get('/resources', (req, res) => {
+  res.json({
+    patterns: {
+      sequential: "Chain agents: Research → Summarize",
+      parallel: "Multiple agents work simultaneously",
+      branching: "Route to specialized agents"
+    },
+    examples: {
+      sequential: {
+        description: "Research a topic and create a summary",
+        request: {
+          messages: [{ content: "Explain quantum computing" }],
+          pattern: "sequential"
+        }
+      },
+      parallel: {
+        description: "Get multiple perspectives on a topic",
+        request: {
+          messages: [{ content: "Benefits of meditation" }],
+          pattern: "parallel"
+        }
+      },
+      branching: {
+        description: "Route to the most appropriate agent",
+        request: {
+          messages: [{ content: "How do I write a React component?" }],
+          pattern: "branching"
+        }
+      }
+    }
+  });
+});
+
+// 5. PAY endpoint (simple mock)
+app.post('/pay', (req, res) => {
+  const { amount } = req.body;
+  const txId = `tx_${Date.now()}`;
+  memory[txId] = { amount, status: 'completed' };
+  res.json({ transaction_id: txId });
+});
+
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🤖 Simple Agent SLOP API running on port ${PORT}`);
+  console.log(`🤖 SLOP Multi-Agent API running on port ${PORT}`);
 });
 
-// Example usage:
+/* Example usage:
 
-// Basic query:
-// curl -X POST http://localhost:3000/chat \
-  // -H "Content-Type: application/json" \
-  // -d '{"messages":[{"content":"What are black holes?"}]}'
+1. Basic query (uses router):
+curl -X POST http://localhost:3000/chat \
+-H "Content-Type: application/json" \
+-d '{
+  "messages": [{ "content": "What are black holes?" }]
+}'
 
-// With pattern:
-// curl -X POST http://localhost:3000/chat \
-  // -H "Content-Type: application/json" \
-  // -d '{"messages":[{"content":"What are black holes?"}], "pattern": "sequential"}'
+2. Sequential pattern:
+curl -X POST http://localhost:3000/chat \
+-H "Content-Type: application/json" \
+-d '{
+  "messages": [{ "content": "Explain quantum computing" }],
+  "pattern": "sequential"
+}'
+
+3. Parallel pattern:
+curl -X POST http://localhost:3000/chat \
+-H "Content-Type: application/json" \
+-d '{
+  "messages": [{ "content": "Benefits of meditation" }],
+  "pattern": "parallel"
+}'
+
+4. Store in memory:
+curl -X POST http://localhost:3000/memory \
+-H "Content-Type: application/json" \
+-d '{
+  "key": "test",
+  "value": "hello world"
+}'
+
+5. Get from memory:
+curl -X GET http://localhost:3000/memory/test
+
+6. List tools:
+curl -X GET http://localhost:3000/tools
+
+7. Get resources:
+curl -X GET http://localhost:3000/resources
+
+8. Process payment:
+curl -X POST http://localhost:3000/pay \
+-H "Content-Type: application/json" \
+-d '{
+  "amount": 10
+}'
+*/
