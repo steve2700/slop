@@ -1,6 +1,6 @@
 # SLOP: Simple Language Open Protocol
 
-Because AI shouldn't be complicated
+# Because AI shouldn't be complicated
 
 ### 🎯 WHAT SLOP IS:
 - A pattern for AI APIs with 5 basic endpoints
