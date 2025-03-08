@@ -95,8 +95,11 @@ That's it. Just a pattern. ✨
 
 ### 💬 CHAT
 - `POST /chat` - Send messages to AI
+- `POST /chat` - Create or continue a thread (with thread_id)
 - `GET /chat/:id` - Get a specific chat
+- `GET /chat/thread_:id` - Get all messages in a thread
 - `GET /chat` - List recent chats
+- `GET /chat?type=threads` - List all threads
 
 ### 🛠️ TOOLS
 - `GET /tools` - List available tools
