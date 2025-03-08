@@ -35,10 +35,10 @@ That's it. Just a pattern. ✨
 
 ## 3. CONNECTION TYPES
 - Standard HTTP/REST Interface For Most Things
-  - Simple GET/POST/PUT/DELETE requests
-  - JSON request/response format
-  - Standard HTTP status codes
-  - Familiar URL-based routing
+  - Simple GET/POST requests with JSON payloads
+  - Standard HTTP status codes and headers
+  - Familiar request/response patterns
+  - Works with any HTTP client or server
 - WebSocket Support for Persistent Real-Time Connections
   - Perfect for streaming responses from AI
   - Enables continuous monitoring and events
