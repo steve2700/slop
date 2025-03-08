@@ -1,16 +1,16 @@
 # SLOP: Because AI shouldn't be complicated
 
 ### 🎯 WHAT SLOP IS:
-- ✅ A pattern for AI APIs with 5 basic endpoints
-- 🌐 Regular HTTP requests with JSON data
-- 🤖 A standard way to talk to any AI service
-- 📡 Based on REST: GET and POST what you need
+- A pattern for AI APIs with 5 basic endpoints
+- Regular HTTP requests with JSON data
+- A standard way to talk to any AI service
+- Based on REST: GET and POST what you need
 
 ### 🚫 WHAT SLOP IS NOT:
-- ❌ A framework or library you install
-- ❌ A new technology or language
-- ❌ A specific company's product
-- ❌ An additional abstraction in any way
+- A framework or library you install
+- A new technology or language
+- A specific company's product
+- An additional abstraction in any way
 
 > 💡 **SLOP simply says:** "AI services should work through plain web requests using patterns we've used for decades."
 
@@ -18,44 +18,44 @@ That's it. Just a pattern. ✨
 
 ---
 
-## 🌟 1. CORE BELIEFS
-- 🌍 Everything is an HTTP request
-- 🛠️ Every tool is an API endpoint
-- 🤖 Every AI is accessible
-- 👩‍💻 Every developer is welcome
+## 1. CORE BELIEFS
+- Everything is an HTTP request
+- Every tool is an API endpoint
+- Every AI is accessible
+- Every developer is welcome
 
-## 📌 2. MINIMUM VIABLE ENDPOINTS
-- `POST /chat` 💬 // Talk to AI
-- `POST /tools` 🛠️ // Use tools
-- `POST /memory` 🧠 // Remember stuff
-- `GET /resources` 📚 // Get knowledge/files/data
-- `POST /pay` 💳 // Handle money (optional)
+## 2. MINIMUM VIABLE ENDPOINTS
+- `POST /chat` // Talk to AI
+- `POST /tools` // Use tools
+- `POST /memory` // Remember stuff
+- `GET /resources` // Get knowledge/files/data
+- `POST /pay` // Handle money (optional)
 
-## 🔗 3. CONNECTIONS
-- 🌐 WebSocket for real-time
-- 📡 SSE for streaming
-- 🌍 HTTP for everything else
+## 3. CONNECTIONS
+- WebSocket for real-time
+- SSE for streaming
+- HTTP for everything else
 
 ---
 
 ## 🤝 THE SLOP PROMISE:
 
-### 🌍 1. OPEN
-- 🆓 Free to use
-- 📖 Open source
-- 🔓 No vendor lock
-- 🌐 Community driven
+### 1. OPEN
+- Free to use
+- Open source
+- No vendor lock
+- Community driven
 
-### 🎈 2. SIMPLE
-- 📡 REST based
-- 📦 JSON only
-- 🌐 Standard HTTP
-- 🚫 Zero dependencies
+### 2. SIMPLE
+- REST based
+- JSON only
+- Standard HTTP
+- Zero dependencies
 
-### 🌈 3. FLEXIBLE
-- 🤖 Any AI model
-- 🛠️ Any tool
-- 🌍 Any platform
+### 3. FLEXIBLE
+- Any AI model
+- Any tool
+- Any platform
 
 ---
 
