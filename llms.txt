@@ -8,8 +8,13 @@
 > ✅ **Connect AI Components in Minutes, Not Months**  
 > ✅ **Standard HTTP/REST Interface Everyone Already Knows For Most Things**  
 > ✅ **WebSocket & SSE Support for Realtime Communication**  
+> ✅ **Build Production-Grade Systems with Persistent Context & Complex Integrations**  
+> ✅ **Perfect for Real-Time Tool Use, Data Access & Multi-Step Workflows**  
+> ✅ **Enterprise-Ready with Security, Scalability & SDK Support**  
 > ✅ **Infinitely Composable Building Blocks for AI Systems**  
 > ✅ **Open Source Pattern That Works with Any AI Model**  
+>
+> **Example:** An AI assistant managing your Spotify playlist while referencing your calendar - all through simple, standardized HTTP requests.
 >
 > *Join thousands of developers building AI ecosystems with the simplicity of SLOP.*
 
