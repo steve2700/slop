@@ -41,11 +41,42 @@
 
 ---
 
-## API PATTERN EXAMPLES
+## ENDPOINT OPERATIONS (v0.0.1)
 
-### POST /chat
-Talk to AI models.
+### CHAT
+- `POST /chat` - Send messages to AI
+- `GET /chat/:id` - Get a specific chat
+- `GET /chat` - List recent chats
 
+### TOOLS
+- `GET /tools` - List available tools
+- `POST /tools/:tool_id` - Use a specific tool
+- `GET /tools/:tool_id` - Get tool details
+
+### MEMORY
+- `POST /memory` - Store a key-value pair
+- `GET /memory/:key` - Get value by key
+- `GET /memory` - List all keys
+- `PUT /memory/:key` - Update existing value
+- `DELETE /memory/:key` - Delete a key-value pair
+- `POST /memory/query` - Search with semantic query
+
+### RESOURCES
+- `GET /resources` - List available resources
+- `GET /resources/:id` - Get a specific resource
+- `GET /resources/search?q=query` - Search resources
+
+### PAY
+- `POST /pay` - Create a payment
+- `GET /pay/:id` - Get payment status
+
+---
+
+## API EXAMPLES - ALL ENDPOINTS
+
+### CHAT ENDPOINTS
+
+#### POST /chat
 ```json
 // REQUEST
 POST /chat
@@ -58,6 +89,7 @@ POST /chat
 
 // RESPONSE
 {
+  "id": "chat_123",
   "message": {
     "role": "assistant", 
     "content": "I don't have real-time weather data. You could check a weather service for current conditions."
@@ -65,26 +97,48 @@ POST /chat
 }
 ```
 
-### POST /tools
-Use tools through API endpoints.
-
+#### GET /chat/:id
 ```json
 // REQUEST
-POST /tools
-{
-  "tool": "calculator",
-  "input": {
-    "expression": "15 * 7"
-  }
-}
+GET /chat/chat_123
 
 // RESPONSE
 {
-  "result": 105
+  "id": "chat_123",
+  "messages": [
+    {"role": "user", "content": "Hello, what's the weather like?"},
+    {"role": "assistant", "content": "I don't have real-time weather data. You could check a weather service for current conditions."}
+  ],
+  "model": "any-model-id",
+  "created_at": "2023-05-15T10:30:00Z"
 }
 ```
 
-List available tools:
+#### GET /chat
+```json
+// REQUEST
+GET /chat
+
+// RESPONSE
+{
+  "chats": [
+    {
+      "id": "chat_123",
+      "snippet": "Hello, what's the weather like?",
+      "created_at": "2023-05-15T10:30:00Z"
+    },
+    {
+      "id": "chat_456",
+      "snippet": "Tell me about Mars",
+      "created_at": "2023-05-14T14:20:00Z"
+    }
+  ]
+}
+```
+
+### TOOLS ENDPOINTS
+
+#### GET /tools
 ```json
 // REQUEST
 GET /tools
@@ -110,11 +164,44 @@ GET /tools
 }
 ```
 
-### POST /memory
-Store and retrieve information.
-
+#### POST /tools/:tool_id
 ```json
-// STORE REQUEST
+// REQUEST
+POST /tools/calculator
+{
+  "expression": "15 * 7"
+}
+
+// RESPONSE
+{
+  "result": 105
+}
+```
+
+#### GET /tools/:tool_id
+```json
+// REQUEST
+GET /tools/calculator
+
+// RESPONSE
+{
+  "id": "calculator",
+  "description": "Performs mathematical calculations",
+  "parameters": {
+    "expression": {
+      "type": "string",
+      "description": "Mathematical expression to evaluate"
+    }
+  },
+  "example": "15 * 7"
+}
+```
+
+### MEMORY ENDPOINTS
+
+#### POST /memory
+```json
+// REQUEST
 POST /memory
 {
   "key": "user_preference",
@@ -124,25 +211,81 @@ POST /memory
   }
 }
 
-// STORE RESPONSE
+// RESPONSE
 {
   "status": "stored"
 }
+```
 
-// RETRIEVE REQUEST
-GET /memory?key=user_preference
+#### GET /memory/:key
+```json
+// REQUEST
+GET /memory/user_preference
 
-// RETRIEVE RESPONSE
+// RESPONSE
 {
   "key": "user_preference",
   "value": {
+    "theme": "dark",
+    "language": "en"
+  },
+  "created_at": "2023-05-15T10:30:00Z"
+}
+```
+
+#### GET /memory
+```json
+// REQUEST
+GET /memory
+
+// RESPONSE
+{
+  "keys": [
+    {
+      "key": "user_preference",
+      "created_at": "2023-05-15T10:30:00Z"
+    },
+    {
+      "key": "search_history",
+      "created_at": "2023-05-14T14:20:00Z"
+    }
+  ]
+}
+```
+
+#### PUT /memory/:key
+```json
+// REQUEST
+PUT /memory/user_preference
+{
+  "value": {
+    "theme": "light",
+    "language": "en"
+  }
+}
+
+// RESPONSE
+{
+  "status": "updated",
+  "previous_value": {
     "theme": "dark",
     "language": "en"
   }
 }
 ```
 
-Semantic query:
+#### DELETE /memory/:key
+```json
+// REQUEST
+DELETE /memory/user_preference
+
+// RESPONSE
+{
+  "status": "deleted"
+}
+```
+
+#### POST /memory/query
 ```json
 // REQUEST
 POST /memory/query
@@ -166,12 +309,12 @@ POST /memory/query
 }
 ```
 
-### GET /resources
-Access knowledge, files, and data.
+### RESOURCES ENDPOINTS
 
+#### GET /resources
 ```json
 // REQUEST
-GET /resources?type=knowledge&query=mars
+GET /resources
 
 // RESPONSE
 {
@@ -179,35 +322,62 @@ GET /resources?type=knowledge&query=mars
     {
       "id": "mars-101",
       "title": "Mars: The Red Planet",
-      "type": "article",
-      "content": "Mars is the fourth planet from the Sun and the second-smallest planet in the Solar System...",
-      "metadata": {
-        "source": "astronomy-db",
-        "last_updated": "2023-05-10"
-      }
+      "type": "article"
+    },
+    {
+      "id": "document-123",
+      "name": "project_plan.pdf",
+      "type": "file"
     }
   ]
 }
 ```
 
-File resource:
+#### GET /resources/:id
 ```json
 // REQUEST
-GET /resources?type=file&id=document-123
+GET /resources/mars-101
 
 // RESPONSE
 {
-  "id": "document-123",
-  "name": "project_plan.pdf",
-  "content_type": "application/pdf",
-  "url": "https://api.example.com/files/document-123",
-  "size": 1502394
+  "id": "mars-101",
+  "title": "Mars: The Red Planet",
+  "type": "article",
+  "content": "Mars is the fourth planet from the Sun and the second-smallest planet in the Solar System...",
+  "metadata": {
+    "source": "astronomy-db",
+    "last_updated": "2023-05-10"
+  }
 }
 ```
 
-### POST /pay
-Handle payments (optional).
+#### GET /resources/search
+```json
+// REQUEST
+GET /resources/search?q=mars
 
+// RESPONSE
+{
+  "results": [
+    {
+      "id": "mars-101",
+      "title": "Mars: The Red Planet",
+      "type": "article",
+      "score": 0.98
+    },
+    {
+      "id": "solar-system",
+      "title": "Our Solar System",
+      "type": "article",
+      "score": 0.75
+    }
+  ]
+}
+```
+
+### PAY ENDPOINTS
+
+#### POST /pay
 ```json
 // REQUEST
 POST /pay
@@ -222,6 +392,23 @@ POST /pay
 {
   "transaction_id": "tx_987654",
   "status": "success",
+  "receipt_url": "https://api.example.com/receipts/tx_987654"
+}
+```
+
+#### GET /pay/:id
+```json
+// REQUEST
+GET /pay/tx_987654
+
+// RESPONSE
+{
+  "transaction_id": "tx_987654",
+  "amount": 5.00,
+  "currency": "USD",
+  "description": "API usage - 1000 tokens",
+  "status": "success",
+  "created_at": "2023-05-15T10:30:00Z",
   "receipt_url": "https://api.example.com/receipts/tx_987654"
 }
 ``` 
