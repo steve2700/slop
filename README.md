@@ -70,6 +70,7 @@ That's it. Just a pattern. ✨
 - Open source
 - No vendor lock
 - Community driven
+- Use any LLM model
 
 ### 2. SIMPLE
 - REST based
@@ -799,3 +800,5 @@ Remember: Use `/ws` suffix to indicate WebSocket endpoints in your SLOP implemen
 Let's collab! SLOP Discord: https://discord.com/invite/nwXJMnHmXP
 
 🎉 **Enjoy using SLOP!** 🎉 
+
+SLOP is an open sourced protocol launched under the MIT license by [@NathanWilbanks](https://discord.com/invite/nwXJMnHmXP) of the AGNT.gg open source agent building platform.
