@@ -39,10 +39,12 @@ That's it. Just a pattern. ✨
   - Standard HTTP status codes and headers
   - Familiar request/response patterns
   - Works with any HTTP client or server
+
 - WebSocket Support for Persistent Real-Time Connections
   - Perfect for streaming responses from AI
   - Enables continuous monitoring and events
   - Supports complex multi-turn interactions
+
 - Server-Sent Events (SSE) for One-Way Real-Time Streaming
   - Ideal for token-by-token AI responses
   - Efficient for monitoring status changes
@@ -50,12 +52,16 @@ That's it. Just a pattern. ✨
 
 ## 4. MULTI-AGENT CAPABILITIES
 - Route Queries to Specialized Agents Based on Content
+
 - Create Agent Networks with Different Skills and Roles
+
 - Support for Multiple Execution Patterns:
   - Sequential (Chain agents in series)
   - Parallel (Multiple agents working simultaneously)
   - Branching (Dynamic routing based on query content)
+
 - Persistent Memory Allows Seamless Agent Collaboration
+
 - Works for Simple to Complex Use Cases:
   - Customer Service Bots with Specialist Routing
   - Research Assistants with Domain-Specific Agents
