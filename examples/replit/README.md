@@ -1,4 +1,4 @@
-# World's Smallest SLOP Server Guide
+# 2 Minute SLOP Server Implementation in Replit 🚀
 
 This guide helps non-developers create and run a SLOP (Simple Language Open Protocol) server with a public URL in less than 5 minutes using Replit - no coding experience required!
 
