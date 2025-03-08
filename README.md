@@ -539,4 +539,8 @@ X-SLOP-Scope: tools.calculator.execute
 
 Remember: Security through simplicity! 🔒
 
+---
+
+Let's collab! SLOP Discord: https://discord.com/invite/nwXJMnHmXP
+
 🎉 **Enjoy using SLOP!** 🎉 
