@@ -1,4 +1,4 @@
-# 🔌 SLOP: Simple Lightweight Open Protocol for AI
+# 🔌 SLOP: Simple Language Open Protocol for AI
 ## The Ultimate Framework for Composable AI Components
 
 > **Unlock the Power of Composable AI with Zero Learning Curve**
