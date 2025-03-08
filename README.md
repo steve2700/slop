@@ -4,7 +4,7 @@
 
 ### 🎯 WHAT SLOP IS:
 - A pattern for AI APIs with 5 basic endpoints
-- Regular HTTP/HTTPS requests with JSON data
+- Regular HTTP(S) requests with JSON data
 - A standard way to talk to any AI service
 - Based on REST: GET and POST what you need
 
