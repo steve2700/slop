@@ -431,4 +431,68 @@ GET /pay/tx_987654
 }
 ```
 
+### 🔐 AUTH EXAMPLES
+
+Authentication in SLOP uses standard HTTP headers. Here are examples in both JavaScript and Python:
+
+#### JavaScript Example
+```javascript
+// Using fetch
+const callSlop = async (endpoint, data) => {
+  const response = await fetch(`https://api.example.com${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer your-token-here',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  });
+  return response.json();
+};
+
+// Using axios
+const axios = require('axios');
+const api = axios.create({
+  baseURL: 'https://api.example.com',
+  headers: {
+    'Authorization': 'Bearer your-token-here'
+  }
+});
+
+// Make authenticated requests
+await api.post('/chat', {
+  messages: [{ content: 'Hello!' }]
+});
+```
+
+#### Python Example
+```python
+import requests
+
+# Using requests
+headers = {
+    'Authorization': 'Bearer your-token-here',
+    'Content-Type': 'application/json'
+}
+
+# Function to make authenticated requests
+def call_slop(endpoint, data=None):
+    base_url = 'https://api.example.com'
+    method = 'GET' if data is None else 'POST'
+    response = requests.request(
+        method=method,
+        url=f'{base_url}{endpoint}',
+        headers=headers,
+        json=data
+    )
+    return response.json()
+
+# Make authenticated requests
+chat_response = call_slop('/chat', {
+    'messages': [{'content': 'Hello!'}]
+})
+```
+
+Remember: SLOP uses standard HTTP auth - no special endpoints needed! 🔑
+
 🎉 **Enjoy using SLOP!** 🎉 
