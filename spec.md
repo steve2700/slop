@@ -1,7 +1,7 @@
 # RFC Specification for Simple Language Open Protocol (SLOP)
 Version: 1.0.0
 Status: Draft
-Date: 2024-03-08
+Date: 2025-03-08
 
 ## Abstract
 
