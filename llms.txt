@@ -1,38 +1,14 @@
-# 🔌 SLOP: Simple Language Open Protocol for AI
-## The Ultimate Framework for Composable AI Components
-
-> **Unlock the Power of Composable AI with Zero Learning Curve**
->
-> SLOP delivers a revolutionary approach to AI integration - build powerful, interconnected AI systems using familiar HTTP requests. No specialized knowledge required.
->
-> ✅ **Connect AI Components in Minutes, Not Months**  
-> ✅ **Standard HTTP/REST Interface Everyone Already Knows For Most Things**  
-> ✅ **WebSocket & SSE Support for Realtime Communication**  
-> ✅ **Build Production-Grade Systems with Persistent Context & Complex Integrations**  
-> ✅ **Perfect for Real-Time Tool Use, Data Access & Multi-Step Workflows**  
-> ✅ **Enterprise-Ready with Security, Scalability & SDK Support**  
-> ✅ **Infinitely Composable Building Blocks for AI Systems**  
-> ✅ **Open Source Pattern That Works with Any AI Model**  
->
-> **Example:** An AI assistant managing your Spotify playlist while referencing your calendar - all through simple, standardized HTTP requests.
->
-> *Join thousands of developers building AI ecosystems with the simplicity of SLOP.*
-
-# SLOP LLM Documentation
-# This is a comprehensive guide to implementing the SLOP pattern.
-# The examples below show different approaches in JavaScript and Python
-# for building AI agents, tools, and memory systems following SLOP principles.
 
 ----------------------
 README.MD
 ----------------------
 # SLOP: Simple Language Open Protocol
 
-Because AI shouldn't be complicated
+> **Because AI shouldn't be complicated**
 
 ### 🎯 WHAT SLOP IS:
 - A pattern for AI APIs with 5 basic endpoints
-- Regular HTTP/HTTPS requests with JSON data
+- Regular HTTP(S) requests with JSON data
 - A standard way to talk to any AI service
 - Based on REST: GET and POST what you need
 
@@ -61,10 +37,33 @@ That's it. Just a pattern. ✨
 - `GET /resources` // Get knowledge/files/data
 - `POST /pay` // Handle money (optional)
 
-## 3. CONNECTIONS
-- HTTP by default
-- WebSocket also supported for real-time
-- SSE also supported for streaming
+## 3. CONNECTION TYPES
+- Standard HTTP/REST Interface For Most Things
+  - Simple GET/POST requests with JSON payloads
+  - Standard HTTP status codes and headers
+  - Familiar request/response patterns
+  - Works with any HTTP client or server
+- WebSocket Support for Persistent Real-Time Connections
+  - Perfect for streaming responses from AI
+  - Enables continuous monitoring and events
+  - Supports complex multi-turn interactions
+- Server-Sent Events (SSE) for One-Way Real-Time Streaming
+  - Ideal for token-by-token AI responses
+  - Efficient for monitoring status changes
+  - Lower overhead than full WebSocket connections
+
+## 4. MULTI-AGENT CAPABILITIES
+- Route Queries to Specialized Agents Based on Content
+- Create Agent Networks with Different Skills and Roles
+- Support for Multiple Execution Patterns:
+  - Sequential (Chain agents in series)
+  - Parallel (Multiple agents working simultaneously)
+  - Branching (Dynamic routing based on query content)
+- Persistent Memory Allows Seamless Agent Collaboration
+- Works for Simple to Complex Use Cases:
+  - Customer Service Bots with Specialist Routing
+  - Research Assistants with Domain-Specific Agents
+  - Creative Workflows with Multiple AI Collaborators
 
 ---
 
@@ -574,8 +573,6 @@ Remember: Security through simplicity! 🔒
 Let's collab! SLOP Discord: https://discord.com/invite/nwXJMnHmXP
 
 🎉 **Enjoy using SLOP!** 🎉 
-
----
 
 Directory Structure:
 + examples
@@ -1643,3 +1640,30 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+# 🔌 SLOP: Simple Language Open Protocol for AI
+## The Ultimate Framework for Composable AI Components
+
+> **Unlock the Power of Composable AI with Zero Learning Curve**
+>
+> SLOP delivers a revolutionary approach to AI integration - build powerful, interconnected AI systems using familiar HTTP requests. No specialized knowledge required.
+>
+> ✅ **Connect AI Components in Minutes, Not Months**  
+> ✅ **Standard HTTP/REST Interface Everyone Already Knows For Most Things**  
+> ✅ **WebSocket & SSE Support for Realtime Communication**  
+> ✅ **Build Production-Grade Systems with Persistent Context & Complex Integrations**  
+> ✅ **Perfect for Real-Time Tool Use, Data Access & Multi-Step Workflows**  
+> ✅ **Enterprise-Ready with Security, Scalability & SDK Support**  
+> ✅ **Infinitely Composable Building Blocks for AI Systems**  
+> ✅ **Open Source Pattern That Works with Any AI Model**  
+>
+> **Example:** An AI assistant managing your Spotify playlist while referencing your calendar - all through simple, standardized HTTP requests.
+>
+> *Join thousands of developers building AI ecosystems with the simplicity of SLOP.*
+
+# SLOP LLM Documentation
+# This is a comprehensive guide to implementing the SLOP pattern.
+# The examples below show different approaches in JavaScript and Python
+# for building AI agents, tools, and memory systems following SLOP principles.
