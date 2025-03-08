@@ -1,5 +1,23 @@
 # SLOP: Because AI shouldn't be complicated
 
+### WHAT SLOP IS:
+- A pattern for AI APIs with 5 basic endpoints
+- Regular HTTP requests with JSON data
+- A standard way to talk to any AI service
+- Based on REST: GET and POST what you need
+
+### WHAT SLOP IS NOT:
+- A framework or library you install
+- A new technology or language
+- A specific company's product
+- Complicated or fancy in any way
+
+SLOP simply says: "AI services should work through plain web requests using patterns we've used for decades."
+
+That's it. Just a pattern.
+
+---
+
 ## 1. CORE BELIEFS
 - Everything is an HTTP request
 - Every tool is an API endpoint
